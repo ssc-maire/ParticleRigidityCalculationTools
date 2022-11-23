@@ -9,15 +9,23 @@ if os.path.isfile(requirement_path):
     with open(requirement_path) as f:
         install_requires = f.read().splitlines()
 
+# read the contents of your README file
+from pathlib import Path
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
+
 setup(
     name='ParticleRigidityCalculationTools',
-    packages=find_packages(),
-    version='1.0',
+    py_modules=["ParticleRigidityCalculationTools"],
+    version='1.2',
     description='Python library containing tools for dealing with conversions between particle energy and rigidity',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     author='Me',
+    author_email='ChrisSWDavis@gmail.com',
     license='MIT',
+    url='https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools',
     install_requires=install_requires,
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
-    test_suite='tests',
 )
