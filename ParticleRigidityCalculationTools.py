@@ -8,6 +8,26 @@ protonRestMass = dec.Decimal(1.67262192e-27)  #kg
 chargeOfElectron = dec.Decimal(1.60217663e-19) #C
 c = dec.Decimal(299792458.0) #m/s
 
+def allowForNonSeriesInputArgs(functionToModify):
+
+    def functionWithGeneralInputArgs(*args, **kwargs):
+
+        newArgs = []
+        for inputArg in args:
+            if type(inputArg) == pd.Series:
+                newArg = inputArg
+            elif type(inputArg) in [int, float]:
+                newArg = pd.Series([inputArg])
+            else:
+                newArg = pd.Series(inputArg)
+            newArgs.append(newArg)
+
+        result = functionToModify(*newArgs, **kwargs)
+
+        return result
+
+    return functionWithGeneralInputArgs
+
 def getAtomicMass(atomicNumber):
 
     A = [1.0,  4.0,  6.9,  9.0, 10.8, 12.0, 14.0, 16.0, 19.0, 20.2,\
@@ -36,6 +56,7 @@ def determineParticleAttributes(particleMassAU, particleChargeAU):
     particleRestEnergy = m0 * (c**2)
     return particleCharge,particleRestEnergy
 
+@allowForNonSeriesInputArgs
 def convertParticleEnergyToRigidity(particleKineticEnergyInMeV:pd.Series, particleMassAU = 1, particleChargeAU = 1):
 
     particleCharge, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
@@ -51,6 +72,7 @@ def convertParticleEnergyToRigidity(particleKineticEnergyInMeV:pd.Series, partic
 
     return rigidityInGV.apply(float)
 
+@allowForNonSeriesInputArgs
 def convertParticleRigidityToEnergy(particleRigidityInGV:pd.Series, particleMassAU = 1, particleChargeAU = 1):
 
     particleCharge, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
@@ -65,7 +87,7 @@ def convertParticleRigidityToEnergy(particleRigidityInGV:pd.Series, particleMass
 
     return KEinMeV.apply(float)
 
-def calculate_dKEoverdR(particleKineticEnergyInMeV, particleCharge, particleRestEnergy):
+def calculate_dKEoverdR(particleKineticEnergyInMeV:pd.Series, particleCharge, particleRestEnergy):
     particleKineticEnergyInJoules = particleKineticEnergyInMeV.apply(dec.Decimal) * chargeOfElectron * dec.Decimal(1e6)
 
     totalParticleEnergy = particleKineticEnergyInJoules + particleRestEnergy
@@ -77,15 +99,22 @@ def calculate_dKEoverdR(particleKineticEnergyInMeV, particleCharge, particleRest
     dKEInMeV_drigidityInGV = fullFactor * particleCharge * dec.Decimal(1e9) / (chargeOfElectron * dec.Decimal(1e6))
     return dKEInMeV_drigidityInGV
 
+@allowForNonSeriesInputArgs
 def convertParticleEnergySpecToRigiditySpec(particleKineticEnergyInMeV:pd.Series, fluxInEnergyMeVform:pd.Series, particleMassAU = 1, particleChargeAU = 1):
 
     particleCharge, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
 
     dKEInMeV_drigidityInGV = calculate_dKEoverdR(particleKineticEnergyInMeV, particleCharge, particleRestEnergy)
 
-    return (dKEInMeV_drigidityInGV * fluxInEnergyMeVform.apply(dec.Decimal)).apply(float)
+    outputRigidities = convertParticleEnergyToRigidity(particleKineticEnergyInMeV, particleMassAU = particleMassAU, particleChargeAU = particleChargeAU)
+    outputRigiditySpectrum = (dKEInMeV_drigidityInGV * fluxInEnergyMeVform.apply(dec.Decimal)).apply(float)
 
-def convertParticleRigiditySpecToEnergySpec(particleRigidityInGV, fluxInRigidityGVform, particleMassAU = 1, particleChargeAU = 1):
+    outputDataFrame = pd.DataFrame({"Rigidity":outputRigidities, "Rigidity distribution values":outputRigiditySpectrum})
+
+    return outputDataFrame.applymap(float)
+
+@allowForNonSeriesInputArgs
+def convertParticleRigiditySpecToEnergySpec(particleRigidityInGV:pd.Series, fluxInRigidityGVform:pd.Series, particleMassAU = 1, particleChargeAU = 1):
 
     particleCharge, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
 
@@ -93,4 +122,9 @@ def convertParticleRigiditySpecToEnergySpec(particleRigidityInGV, fluxInRigidity
 
     dKEInMeV_drigidityInGV = calculate_dKEoverdR(particleKineticEnergyInMeV, particleCharge, particleRestEnergy)
 
-    return (fluxInRigidityGVform.apply(dec.Decimal) / dKEInMeV_drigidityInGV).apply(float)
+    outputEnergies = particleKineticEnergyInMeV
+    outputEnergySpectrum = (fluxInRigidityGVform.apply(dec.Decimal) / dKEInMeV_drigidityInGV).apply(float)
+
+    outputDataFrame = pd.DataFrame({"Energy":outputEnergies, "Energy distribution values":outputEnergySpectrum})
+
+    return outputDataFrame.applymap(float)
