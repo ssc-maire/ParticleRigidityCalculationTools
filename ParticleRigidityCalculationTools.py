@@ -87,17 +87,17 @@ def convertParticleRigidityToEnergy(particleRigidityInGV:pd.Series, particleMass
 
     return KEinMeV.apply(float)
 
-def calculate_dKEoverdR(particleKineticEnergyInMeV:pd.Series, particleCharge, particleRestEnergy):
+def calculate_dKEoverdR(particleKineticEnergyInMeV:pd.Series, particleChargeInCoulombs, particleRestEnergy):
     particleKineticEnergyInJoules = particleKineticEnergyInMeV.apply(dec.Decimal) * chargeOfElectron * dec.Decimal(1e6)
 
     totalParticleEnergy = particleKineticEnergyInJoules + particleRestEnergy
-    pc = np.sqrt((totalParticleEnergy**2) - (particleRestEnergy**2))
+    pc = np.sqrt((totalParticleEnergy**2) - (particleRestEnergy**2)) # units of pc are in joules
 
     #fullFactor = pc/particleKineticEnergyInJoules
     fullFactor = pc/totalParticleEnergy
 
-    dKEInMeV_drigidityInGV = fullFactor * particleCharge * dec.Decimal(1e9) / (chargeOfElectron * dec.Decimal(1e6))
-    return dKEInMeV_drigidityInGV
+    dKEInMeV_drigidityInGV = fullFactor * particleChargeInCoulombs * dec.Decimal(1e9) / (chargeOfElectron * dec.Decimal(1e6))
+    return dKEInMeV_drigidityInGV # output units are in milli electron charges
 
 @allowForNonSeriesInputArgs
 def convertParticleEnergySpecToRigiditySpec(particleKineticEnergyInMeV:pd.Series, fluxInEnergyMeVform:pd.Series, particleMassAU = 1, particleChargeAU = 1):
@@ -118,11 +118,13 @@ def convertParticleRigiditySpecToEnergySpec(particleRigidityInGV:pd.Series, flux
 
     particleCharge, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
 
-    particleKineticEnergyInMeV = convertParticleRigidityToEnergy(particleRigidityInGV, particleMassAU = 1, particleChargeAU = 1).apply(dec.Decimal)
+    particleKineticEnergyInMeV = convertParticleRigidityToEnergy(particleRigidityInGV, particleMassAU = particleMassAU, particleChargeAU = particleChargeAU).apply(dec.Decimal)
 
     dKEInMeV_drigidityInGV = calculate_dKEoverdR(particleKineticEnergyInMeV, particleCharge, particleRestEnergy)
 
     outputEnergies = particleKineticEnergyInMeV
+
+    dKEInMeV_drigidityInGV.replace(dec.Decimal(0),dec.Decimal(np.nan),inplace=True)
     outputEnergySpectrum = (fluxInRigidityGVform.apply(dec.Decimal) / dKEInMeV_drigidityInGV).apply(float)
 
     outputDataFrame = pd.DataFrame({"Energy":outputEnergies, "Energy distribution values":outputEnergySpectrum})
