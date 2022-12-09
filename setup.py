@@ -17,11 +17,11 @@ long_description = (this_directory / "README.md").read_text()
 setup(
     name='ParticleRigidityCalculationTools',
     py_modules=["ParticleRigidityCalculationTools"],
-    version='1.5',
+    version='1.5.1',
     description='Python library containing tools for dealing with conversions between particle energy and rigidity',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    author='Me',
+    author='Chris S. W. Davis',
     author_email='ChrisSWDavis@gmail.com',
     license='MIT',
     url='https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools',

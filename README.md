@@ -55,7 +55,7 @@ outputtedRigiditiesSeries = PRCT.convertParticleEnergyToRigidity(particleKinetic
 ```
 we can get back the original set of proton kinetic energies with
 ```
-ParticleRigidityCalculationTools.convertParticleRigidityToEnergy(outputtedRigiditiesSeries,particleMassAU=1.0,particleChargeAU=1.0)
+PRCT.convertParticleRigidityToEnergy(outputtedRigiditiesSeries,particleMassAU=1.0,particleChargeAU=1.0)
 ```
 which returns
 ```
