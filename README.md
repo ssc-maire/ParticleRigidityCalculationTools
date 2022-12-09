@@ -71,7 +71,7 @@ When not using protons, you can either directly input the particle mass from tab
 ```
 alphaParticleAtomicNumber = 2
 
-PRCS.getAtomicMass(alphaParticleAtomicNumber)
+PRCT.getAtomicMass(alphaParticleAtomicNumber)
 ```
 
 returns

@@ -17,7 +17,7 @@ long_description = (this_directory / "README.md").read_text()
 setup(
     name='ParticleRigidityCalculationTools',
     py_modules=["ParticleRigidityCalculationTools"],
-    version='1.5.1',
+    version='1.5.2',
     description='Python library containing tools for dealing with conversions between particle energy and rigidity',
     long_description=long_description,
     long_description_content_type='text/markdown',
