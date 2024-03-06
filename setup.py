@@ -17,7 +17,7 @@ long_description = (this_directory / "README.md").read_text()
 setup(
     name='ParticleRigidityCalculationTools',
     py_modules=["ParticleRigidityCalculationTools"],
-    version='1.5.3',
+    version='1.5.4',
     description='Python library containing tools for dealing with conversions between particle energy and rigidity',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -25,7 +25,10 @@ setup(
     author_email='ChrisSWDavis@gmail.com',
     license='MIT',
     url='https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools',
-    install_requires=install_requires,
+    install_requires=['numpy>=1.23.1',
+                      'pandas>=1.4.3',
+                      'setuptools>=45.2.0'],
+    #install_requires,
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
 )
