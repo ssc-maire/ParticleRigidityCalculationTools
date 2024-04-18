@@ -5,7 +5,7 @@ authors:
   given-names: "Christopher Stephen William"
   orcid: "https://orcid.org/0000-0002-8096-1383"
 title: "ParticleRigidityCalculationTools"
-version: 1.5.5
+version: 1.5.7
 doi: 10.5281/zenodo.10992232
 date-released: 2024-04-18
 url: "https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools"
