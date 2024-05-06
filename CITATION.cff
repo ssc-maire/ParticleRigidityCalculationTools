@@ -1,11 +1,18 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below. This software can also be installed from https://pypi.org/project/ParticleRigidityCalculationTools/ ."
+message: "If you use this software, please cite it as below. The software homepage can be found at https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools . This software can also be installed from https://pypi.org/project/ParticleRigidityCalculationTools/ ."
 authors:
 - family-names: "Davis"
   given-names: "Christopher Stephen William"
   orcid: "https://orcid.org/0000-0002-8096-1383"
+  affiliation: "University of Surrey"
+  alias: "ChrisSWDavis"
+  email: "ChrisSWDavis@gmail.com"
+  website: "https://www.researchgate.net/profile/Chris-Davis-13"
 title: "ParticleRigidityCalculationTools"
-version: 1.5.7
+type: software
+version: 1.5.8
 doi: 10.5281/zenodo.10992232
 date-released: 2024-04-18
 url: "https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools"
+repository-code: "https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools"
+repository-artifact: "https://pypi.org/project/ParticleRigidityCalculationTools/"
