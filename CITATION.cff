@@ -4,7 +4,7 @@ authors:
 - alias: "Space Environment and Protection Group, University of Surrey"
 title: "ParticleRigidityCalculationTools"
 type: software
-version: 1.5.10
+version: 1.5.11
 doi: 10.5281/zenodo.10992232
 date-released: 2024-04-18
 url: "https://github.com/ssc-maire/ParticleRigidityCalculationTools"
