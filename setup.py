@@ -23,7 +23,7 @@ setup(
     long_description_content_type='text/markdown',
     author='Space Environment and Protection Group, University of Surrey',
     license='MIT',
-    url='https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools',
+    url='https://github.com/ssc-maire/ParticleRigidityCalculationTools',
     install_requires=['numpy>=1.23.1',
                       'pandas>=1.4.3',
                       'setuptools>=45.2.0'],
