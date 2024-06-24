@@ -1,12 +1,12 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below. The software homepage can be found at https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools . This software can also be installed from https://pypi.org/project/ParticleRigidityCalculationTools/ ."
+message: "If you use this software, please cite it as below. The software homepage can be found at https://github.com/ssc-maire/ParticleRigidityCalculationTools . This software can also be installed from https://pypi.org/project/ParticleRigidityCalculationTools/ ."
 authors:
 - alias: "Space Environment and Protection Group, University of Surrey"
 title: "ParticleRigidityCalculationTools"
 type: software
-version: 1.5.9
+version: 1.5.10
 doi: 10.5281/zenodo.10992232
 date-released: 2024-04-18
-url: "https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools"
-repository-code: "https://github.com/ChrisSWDavis/ParticleRigidityCalculationTools"
+url: "https://github.com/ssc-maire/ParticleRigidityCalculationTools"
+repository-code: "https://github.com/ssc-maire/ParticleRigidityCalculationTools"
 repository-artifact: "https://pypi.org/project/ParticleRigidityCalculationTools/"
