@@ -23,6 +23,8 @@ setup(
     long_description_content_type='text/markdown',
     author='Space Environment and Protection Group, University of Surrey',
     url='https://github.com/ssc-maire/ParticleRigidityCalculationTools',
+    keywords = 'space physics earth geomagnetic rigidity magnetocosmics',
+    license='CC BY-NC-SA 4.0',
     install_requires=['numpy>=1.23.1',
                       'pandas>=1.4.3',
                       'setuptools>=45.2.0'],
