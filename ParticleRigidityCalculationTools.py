@@ -111,7 +111,7 @@ def convertParticleEnergySpecToRigiditySpec(particleKineticEnergyInMeV:pd.Series
 
     outputDataFrame = pd.DataFrame({"Rigidity":outputRigidities, "Rigidity distribution values":outputRigiditySpectrum})
 
-    return outputDataFrame.applymap(float)
+    return outputDataFrame.map(float)
 
 @allowForNonSeriesInputArgs
 def convertParticleRigiditySpecToEnergySpec(particleRigidityInGV:pd.Series, fluxInRigidityGVform:pd.Series, particleMassAU = 1, particleChargeAU = 1):
@@ -129,4 +129,4 @@ def convertParticleRigiditySpecToEnergySpec(particleRigidityInGV:pd.Series, flux
 
     outputDataFrame = pd.DataFrame({"Energy":outputEnergies, "Energy distribution values":outputEnergySpectrum})
 
-    return outputDataFrame.applymap(float)
+    return outputDataFrame.map(float)
