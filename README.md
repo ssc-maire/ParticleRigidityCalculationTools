@@ -11,11 +11,13 @@ sudo pip3 install ParticleRigidityCalculationTools
 ```
 Alternatively, you can install directly from the Github repository.
 
-To do this you can first clone the repository, and then from the cloned respository, run
+To do this you can first clone the repository, and then from the cloned repository, run
 
 ```
-sudo python setup.py install
+pip install .
 ```
+
+(Use `sudo pip install .` for a system-wide install.)
 
 # Usage
 
