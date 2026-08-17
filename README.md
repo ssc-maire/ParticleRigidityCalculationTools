@@ -21,7 +21,9 @@ pip install .
 
 # Usage
 
-For all the functions contained in this module, kinetic energy is always expressed in **MeV** (megaelectronvolts), and rigidity is always expressed in terms of **GV** (gigavolts) unless otherwise stated.
+For all the functions contained in this module, **total** kinetic energy is expressed in **MeV** (megaelectronvolts), and **total** rigidity is expressed in **GV** (gigavolts) unless otherwise stated.
+
+The low-level converters `convertParticleEnergyToRigidity` and `convertParticleRigidityToEnergy` take the nucleus kinetic energy, **not** MeV/n. Passing a per-nucleon energy grid for Z>1 without multiplying by mass number \(A\) underestimates rigidity (for helium, typically by a factor of about two). Use `convertPerNucleonEnergyToTotalRigidity` / `convertTotalRigidityToPerNucleonEnergy` when the energy grid is in MeV/n, which is the usual convention for heavy-ion spectra and for MAIRE-style atmospheric response matrices.
 
 ## General Conversion Functions
 
@@ -83,6 +85,14 @@ returns
 
 The particle charge for all functions in this module is identical to the particle atomic number.
 
+For a helium ion at 1129 MeV/n, the total rigidity is obtained from the **total** kinetic energy \(A \times 1129\) MeV:
+
+```
+PRCT.convertPerNucleonEnergyToTotalRigidity(1129.0, particleMassAU=4.0, particleChargeAU=2)
+```
+
+which returns about **3.69 GV**. Calling `convertParticleEnergyToRigidity(1129.0, particleMassAU=4.0, particleChargeAU=2)` treats 1129 as total MeV and incorrectly returns about 1.56 GV.
+
 ## Spectrum Conversion Functions
 
 A user might not necessarily want to just convert individual numbers between units of rigidity and energy, they might also want to convert a kinetic energy distribution or rigidity distribution. This might usually be expressed in the form of $\frac{dN}{dE}$ or $\frac{dN}{dR}$, where E and R are particle kinetic energy and rigidity respectively, and where both quantities are expressed in terms of kinetic energy and rigidity respectively. As there is a one-to-one relationship between kinetic energy and rigidity, it is possible to analytically convert between these two quantities using $\frac{dN}{dR} = \frac{dN}{dE} \times \frac{dE}{dR}$, where $\frac{dR}{dE}$ can be calculated using the definition of the [magnetic rigidity of a particle](https://www.nmdb.eu/public_outreach/de/07_md/).
@@ -125,3 +135,5 @@ returns
 4  5000.0                        0.01
 ```
 the original kinetic energies and distribution values that were used for the energy distribution.
+
+The same round-trip for a **per-nucleon** helium spectrum uses `convertPerNucleonEnergySpecToTotalRigiditySpec` and `convertTotalRigiditySpecToPerNucleonEnergySpec`. If \(j_{E_n}\) is in particles cm\(^{-2}\) s\(^{-1}\) sr\(^{-1}\) (MeV/n)\(^{-1}\), the rigidity flux is \(j_R = j_{E_n}\,\mathrm{d}(E/n)/\mathrm{d}R\).
