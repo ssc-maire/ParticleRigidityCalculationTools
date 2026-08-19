@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ParticleRigidityCalculationTools"
-version = "1.5.19"
+version = "1.5.21"
 description = "Python library containing tools for dealing with conversions between particle energy and rigidity"
 readme = "README.md"
 license = { text = "CC BY-NC-SA 4.0" }
