@@ -21,13 +21,15 @@ pip install .
 
 # Usage
 
-For all the functions contained in this module, kinetic energy is always expressed in **MeV** (megaelectronvolts), and rigidity is always expressed in terms of **GV** (gigavolts) unless otherwise stated.
+For all the functions contained in this module, **total** kinetic energy is expressed in **MeV** (megaelectronvolts), and **total** rigidity is expressed in **GV** (gigavolts) unless otherwise stated.
+
+The low-level converters `convertParticleEnergyToRigidity` and `convertParticleRigidityToEnergy` take the nucleus kinetic energy, **not** MeV/n. Passing a per-nucleon energy grid for Z>1 without multiplying by mass number \(A\) underestimates rigidity (for helium, typically by a factor of about two). Use `convertPerNucleonEnergyToTotalRigidity` / `convertTotalRigidityToPerNucleonEnergy` when the energy grid is in MeV/n, which is the usual convention for heavy-ion spectra and for MAIRE-style atmospheric response matrices.
 
 ## General Conversion Functions
 
 To convert particle kinetic energy to rigidity, use the `convertParticleEnergyToRigidity` function. 
 
-Particle kinetic energies can be supplied as a float, int, list, [NumPy array](https://numpy.org/doc/stable/reference/generated/numpy.array.html) or [Pandas Series](https://pandas.pydata.org/docs/reference/api/pandas.Series.html). Particle mass in atomic units should also be supplied, as well as the particle charge in atomic units, as particle rigidity is dependent on these quantities.
+Particle kinetic energies can be supplied as a float, int, list, [NumPy array](https://numpy.org/doc/stable/reference/generated/numpy.array.html) or [Pandas Series](https://pandas.pydata.org/docs/reference/api/pandas.Series.html). Particle mass in atomic units should also be supplied, as well as the particle charge magnitude in atomic units, as particle rigidity is dependent on these quantities.
 
 For instance, to calculate particle rigidities for several kinetic energies at once you can first define a list of particle kinetic energies:
 ```
@@ -81,7 +83,39 @@ returns
 4.0
 ```
 
-The particle charge for all functions in this module is identical to the particle atomic number.
+The charge magnitude `|Z|` used by all functions is the particle atomic number (for electrons, `|Z| = 1`). `particleChargeAU` may be signed; only the magnitude is used, because magnetic rigidity is \(R = pc/|q|\).
+
+For a helium ion at 1129 MeV/n, the total rigidity is obtained from the **total** kinetic energy \(A \times 1129\) MeV:
+
+```
+PRCT.convertPerNucleonEnergyToTotalRigidity(1129.0, particleMassAU=4.0, particleChargeAU=2)
+```
+
+which returns about **3.69 GV**. Calling `convertParticleEnergyToRigidity(1129.0, particleMassAU=4.0, particleChargeAU=2)` treats 1129 as total MeV and incorrectly returns about 1.56 GV.
+
+## Electrons
+
+Electrons are not nuclei. Their rest energy is \(mc^{2} \approx 0.511\,\mathrm{MeV}\), not the proton rest energy \(\approx 938\,\mathrm{MeV}\). Pass the electron-to-proton mass ratio as `particleMassAU`, and charge magnitude `|Z| = 1`.
+
+`getAtomicMass(-1)` returns that mass ratio \(m_e/m_p \approx 1/1836\), using the CODATA 2018 electron and proton masses. Do **not** use `particleMassAU = 1`: that treats the electron as a proton and overestimates rigidity at MeV energies by a factor of about 30.
+
+```
+electronMassAU = PRCT.getAtomicMass(-1)
+
+PRCT.convertParticleEnergyToRigidity(1.0, particleMassAU=electronMassAU, particleChargeAU=1)
+```
+
+returns about **0.00142 GV** (1.42 MV) for a 1 MeV electron. That matches the relativistic definition
+
+\[
+R = \frac{\sqrt{K(K+2mc^{2})}}{|Z|\times 1000}\ \mathrm{GV}
+\]
+
+with \(K\) and \(mc^{2}\) in MeV. `particleChargeAU=-1` gives the same positive rigidity, because only \(|q|\) is used.
+
+At high energy the electron is ultrarelativistic, so \(R \approx (K + 0.511)/1000\) GV. At 10 GeV that is about **10.0005 GV**.
+
+Use the total-energy converters (`convertParticleEnergyToRigidity`, `convertParticleEnergySpecToRigiditySpec`, and their inverses) with the electron mass. Do **not** use the per-nucleon wrappers for electrons: those multiply energy by mass number \(A\), which is the right correction for ions such as helium, not for \(m_e/m_p\).
 
 ## Spectrum Conversion Functions
 
@@ -125,3 +159,5 @@ returns
 4  5000.0                        0.01
 ```
 the original kinetic energies and distribution values that were used for the energy distribution.
+
+The same round-trip for a **per-nucleon** helium spectrum uses `convertPerNucleonEnergySpecToTotalRigiditySpec` and `convertTotalRigiditySpecToPerNucleonEnergySpec`. If \(j_{E_n}\) is in particles cm\(^{-2}\) s\(^{-1}\) sr\(^{-1}\) (MeV/n)\(^{-1}\), the rigidity flux is \(j_R = j_{E_n}\,\mathrm{d}(E/n)/\mathrm{d}R\).
