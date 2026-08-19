@@ -6,7 +6,7 @@ authors:
   orcid: https://orcid.org/0000-0002-8096-1383
 title: "ParticleRigidityCalculationTools"
 type: software
-version: 1.5.19
+version: 1.5.21
 doi: 10.5281/zenodo.10992232
 date-released: 2026-08-17
 url: "https://github.com/ssc-maire/ParticleRigidityCalculationTools"
