@@ -1,26 +1,24 @@
 
 import numpy as np
-import pandas as pd
 import ParticleRigidityCalculationTools as PRCT
 
+# Tabulated atomic masses for proton, helium, and magnesium.
 def test_getAtomicMass():
 
+    assert PRCT.getAtomicMass(1) == 1.0
+    assert PRCT.getAtomicMass(2) == 4.0
     assert PRCT.getAtomicMass(12) == 24.3
 
+# Proton total kinetic energy (MeV) to total rigidity (GV) against known values.
 def test_rigidityConversion():
 
     particleKineticEnergyInMeV = [250.0, 578.5, 1056.8, 5123.9]
 
     outputValues = PRCT.convertParticleEnergyToRigidity(particleKineticEnergyInMeV, particleMassAU = 1.0, particleChargeAU = 1.0)
 
-    roundedOutputValues = outputValues.apply(lambda x:round(x,2))
+    np.testing.assert_allclose(outputValues, [0.73, 1.19, 1.76, 5.99], atol=5e-3)
 
-    assert list(roundedOutputValues) == [0.73, 1.19,1.76, 5.99]
-
-def oneDPround(inputVal):
-
-    return round(inputVal,1)
-
+# Proton energy -> rigidity -> energy returns the original total kinetic energies.
 def test_rigidityAndEnergyConversion():
 
     particleKineticEnergyInMeV = [250.0, 578.5, 1056.8, 5123.9]
@@ -29,11 +27,12 @@ def test_rigidityAndEnergyConversion():
 
     outputEnergyValues = PRCT.convertParticleRigidityToEnergy(outputRigidityValues, particleMassAU = 1.0, particleChargeAU = 1.0)
 
-    assert list(outputEnergyValues.apply(oneDPround)) == particleKineticEnergyInMeV
+    np.testing.assert_allclose(outputEnergyValues, particleKineticEnergyInMeV, rtol=1e-10)
 
 
 #######################################################
 
+# Proton dJ/dE (per total MeV) to dJ/dR (per total GV) against a known point.
 def test_EnergySpecToRigiditySpec():
 
     energyValuesInMeV = [1000, 2000, 3000, 4000, 5000]
@@ -41,9 +40,10 @@ def test_EnergySpecToRigiditySpec():
 
     rigiditySpec = PRCT.convertParticleEnergySpecToRigiditySpec(energyValuesInMeV,energyDistributionValues,particleMassAU = 1,particleChargeAU = 1)
 
-    assert rigiditySpec["Rigidity"].round(2).iloc[2] == 3.82
-    assert rigiditySpec["Rigidity distribution values"].round(2).iloc[2] == 194.24
+    np.testing.assert_allclose(rigiditySpec["Rigidity"].iloc[2], 3.82, atol=5e-3)
+    np.testing.assert_allclose(rigiditySpec["Rigidity distribution values"].iloc[2], 194.24, atol=5e-3)
 
+# Smoke test: proton rigidity-spectrum to energy-spectrum conversion runs without error.
 def test_RigiditySpecToEnergySpec():
 
     rigidityValuesInGV = np.linspace(0.0,10.0,19)
@@ -51,6 +51,7 @@ def test_RigiditySpecToEnergySpec():
 
     energySpec = PRCT.convertParticleRigiditySpecToEnergySpec(rigidityValuesInGV,rigidityDistributionValues,particleMassAU = 1,particleChargeAU = 1)
 
+# Proton total-energy and total-rigidity spectra convert into each other and back.
 def test_BothSpectralConversions():
 
     energyValuesInMeV = [1000, 2000, 3000, 4000, 5000]
@@ -60,10 +61,11 @@ def test_BothSpectralConversions():
 
     energySpec = PRCT.convertParticleRigiditySpecToEnergySpec(rigiditySpec["Rigidity"],rigiditySpec["Rigidity distribution values"],particleMassAU = 1,particleChargeAU = 1)
 
-    assert energySpec["Energy"].round(2).array == pd.Series(energyValuesInMeV).apply(float).round(2).array
-    assert energySpec["Energy distribution values"].round(2).array == pd.Series(energyDistributionValues).apply(float).round(2).array
+    np.testing.assert_allclose(energySpec["Energy"], energyValuesInMeV, rtol=1e-10)
+    np.testing.assert_allclose(energySpec["Energy distribution values"], energyDistributionValues, rtol=1e-10)
 
 
+# Helium total-MeV (not MeV/n) energy and rigidity spectra convert into each other and back.
 def test_BothSpectralConversionsAlpha():
 
     energyValuesInMeV = [1000, 2000, 3000, 4000, 5000]
@@ -73,10 +75,11 @@ def test_BothSpectralConversionsAlpha():
 
     energySpec = PRCT.convertParticleRigiditySpecToEnergySpec(rigiditySpec["Rigidity"],rigiditySpec["Rigidity distribution values"],particleMassAU = 4,particleChargeAU = 2)
 
-    assert energySpec["Energy"].round(2).array == pd.Series(energyValuesInMeV).apply(float).round(2).array
-    assert energySpec["Energy distribution values"].round(2).array == pd.Series(energyDistributionValues).apply(float).round(2).array
+    np.testing.assert_allclose(energySpec["Energy"], energyValuesInMeV, rtol=1e-10)
+    np.testing.assert_allclose(energySpec["Energy distribution values"], energyDistributionValues, rtol=1e-10)
 
 
+# Helium 1129 MeV/n must use the per-nucleon wrapper (~3.68 GV), not total-MeV conversion (~1.56 GV).
 def test_helium_per_nucleon_energy_is_not_total_energy():
     energy_per_nucleon_MeV = 1129.0
     correct_rigidity = PRCT.convertPerNucleonEnergyToTotalRigidity(
@@ -89,11 +92,12 @@ def test_helium_per_nucleon_energy_is_not_total_energy():
         particleMassAU=4.0,
         particleChargeAU=2,
     )
-    np.testing.assert_allclose(correct_rigidity.iloc[0], 3.684, rtol=1e-3)
-    np.testing.assert_allclose(incorrect_rigidity.iloc[0], 1.561, rtol=1e-3)
+    np.testing.assert_allclose(correct_rigidity.iloc[0], 3.6841603524720896, rtol=1e-12)
+    np.testing.assert_allclose(incorrect_rigidity.iloc[0], 1.561178601468076, rtol=1e-12)
     assert correct_rigidity.iloc[0] > 2.0 * incorrect_rigidity.iloc[0]
 
 
+# At the same energy per nucleon, helium total rigidity is exactly twice the proton rigidity (A/Z = 2).
 def test_helium_per_nucleon_rigidity_is_twice_proton_at_same_energy_per_nucleon():
     energy_per_nucleon_MeV = [10.0, 100.0, 1000.0, 1129.0]
     proton_rigidity = PRCT.convertPerNucleonEnergyToTotalRigidity(
@@ -109,6 +113,7 @@ def test_helium_per_nucleon_rigidity_is_twice_proton_at_same_energy_per_nucleon(
     np.testing.assert_allclose(helium_rigidity, 2.0 * proton_rigidity, rtol=1e-12)
 
 
+# Helium MeV/n -> total GV -> MeV/n recovers the original per-nucleon energies.
 def test_per_nucleon_energy_and_rigidity_round_trip():
     energy_per_nucleon_MeV = [250.0, 578.5, 1056.8, 1129.0]
     rigidity = PRCT.convertPerNucleonEnergyToTotalRigidity(
@@ -124,6 +129,7 @@ def test_per_nucleon_energy_and_rigidity_round_trip():
     np.testing.assert_allclose(recovered_energy, energy_per_nucleon_MeV, rtol=1e-10)
 
 
+# Helium per-nucleon spectrum round-trip, and the naive total-MeV converter must disagree on both R and dJ/dR.
 def test_per_nucleon_spectral_conversions_round_trip():
     energy_per_nucleon_MeV = [1000, 2000, 3000, 4000, 5000]
     flux_per_mev_n = [1, 0.5, 0.2, 0.1, 0.01]
@@ -155,8 +161,198 @@ def test_per_nucleon_spectral_conversions_round_trip():
         naive_rigidity_spec["Rigidity"],
         rtol=1e-2,
     )
+    assert not np.allclose(
+        rigidity_spec["Rigidity distribution values"],
+        naive_rigidity_spec["Rigidity distribution values"],
+        rtol=1e-2,
+    )
     np.testing.assert_allclose(
         rigidity_spec["Rigidity"],
         2.0 * PRCT.convertParticleEnergyToRigidity(energy_per_nucleon_MeV, particleMassAU=1, particleChargeAU=1),
         rtol=1e-12,
+    )
+
+
+HELIUM_A = 4.0
+HELIUM_Z = 2
+PROTON_A = 1.0
+PROTON_Z = 1
+
+# Same physical constants as ParticleRigidityCalculationTools, used only for an
+# independent float64 check of the Decimal conversion chain.
+_PROTON_REST_MASS_KG = 1.67262192e-27
+_ELECTRON_CHARGE_C = 1.60217663e-19
+_SPEED_OF_LIGHT_M_S = 299792458.0
+
+HELIUM_PER_NUCLEON_ENERGY_MEV = [11.294627058970837, 28.370820458389794, 1129.0]
+HELIUM_PER_NUCLEON_RIGIDITY_GV_KGO = [
+    0.2920440736449699,
+    0.4649473147684023,
+    3.6841603524720896,
+]
+HELIUM_PER_NUCLEON_FLUX = [5.565730138613413e-6, 1.3394663729029165e-5, 1.0]
+HELIUM_PER_NUCLEON_RIGIDITY_FLUX_KGO = [
+    4.279421540294369e-4,
+    1.6106808615034475e-3,
+    445.5340413443853,
+]
+HELIUM_SPECTRUM_ENERGY_MEV_N = [1000, 2000, 3000, 4000, 5000]
+HELIUM_SPECTRUM_FLUX_PER_MEV_N = [1, 0.5, 0.2, 0.1, 0.01]
+HELIUM_SPECTRUM_RIGIDITY_GV_KGO = [
+    3.392075575140443,
+    5.56887362174154,
+    7.6497405264749405,
+    9.696633788581348,
+    11.727356204077791,
+]
+HELIUM_SPECTRUM_RIGIDITY_FLUX_KGO = [
+    437.5128233264058,
+    236.91107622674974,
+    97.12051827174045,
+    49.08920374848245,
+    4.937192178732051,
+]
+
+
+# Independent float64 R = pc/Ze from total kinetic energy, used to check the Decimal converters.
+def _independent_total_rigidity_gv(ke_total_mev, mass_au, charge_au):
+    rest_energy_j = mass_au * _PROTON_REST_MASS_KG * (_SPEED_OF_LIGHT_M_S ** 2)
+    kinetic_energy_j = np.asarray(ke_total_mev, dtype=np.float64) * _ELECTRON_CHARGE_C * 1e6
+    total_energy_j = kinetic_energy_j + rest_energy_j
+    pc_j = np.sqrt(total_energy_j ** 2 - rest_energy_j ** 2)
+    return (pc_j / (charge_au * _ELECTRON_CHARGE_C)) * 1e-9
+
+
+# Independent float64 dE_tot/dR (MeV/GV), used to check the helium dJ/dR Jacobian.
+def _independent_d_total_energy_d_rigidity(ke_total_mev, mass_au, charge_au):
+    rest_energy_j = mass_au * _PROTON_REST_MASS_KG * (_SPEED_OF_LIGHT_M_S ** 2)
+    charge_c = charge_au * _ELECTRON_CHARGE_C
+    kinetic_energy_j = np.asarray(ke_total_mev, dtype=np.float64) * _ELECTRON_CHARGE_C * 1e6
+    total_energy_j = kinetic_energy_j + rest_energy_j
+    pc_j = np.sqrt(total_energy_j ** 2 - rest_energy_j ** 2)
+    return (pc_j / total_energy_j) * charge_c * 1e9 / (_ELECTRON_CHARGE_C * 1e6)
+
+
+# Helium MeV/n -> total GV against high-precision known values and the independent analytic formula.
+def test_helium_per_nucleon_rigidity_matches_kgo():
+    rigidity = PRCT.convertPerNucleonEnergyToTotalRigidity(
+        HELIUM_PER_NUCLEON_ENERGY_MEV,
+        particleMassAU=HELIUM_A,
+        particleChargeAU=HELIUM_Z,
+    )
+    independent_rigidity = _independent_total_rigidity_gv(
+        np.asarray(HELIUM_PER_NUCLEON_ENERGY_MEV) * HELIUM_A,
+        HELIUM_A,
+        HELIUM_Z,
+    )
+
+    np.testing.assert_allclose(rigidity, HELIUM_PER_NUCLEON_RIGIDITY_GV_KGO, rtol=1e-12)
+    np.testing.assert_allclose(rigidity, independent_rigidity, rtol=1e-12)
+
+
+# Helium dJ/d(E/n) -> dJ/dR against known values and the independent analytic Jacobian.
+def test_helium_per_nucleon_rigidity_spectrum_matches_kgo():
+    rigidity_spec = PRCT.convertPerNucleonEnergySpecToTotalRigiditySpec(
+        HELIUM_PER_NUCLEON_ENERGY_MEV,
+        HELIUM_PER_NUCLEON_FLUX,
+        particleMassAU=HELIUM_A,
+        particleChargeAU=HELIUM_Z,
+    )
+    independent_jacobian = _independent_d_total_energy_d_rigidity(
+        np.asarray(HELIUM_PER_NUCLEON_ENERGY_MEV) * HELIUM_A,
+        HELIUM_A,
+        HELIUM_Z,
+    ) / HELIUM_A
+    independent_rigidity_flux = np.asarray(HELIUM_PER_NUCLEON_FLUX) * independent_jacobian
+
+    np.testing.assert_allclose(
+        rigidity_spec["Rigidity"],
+        HELIUM_PER_NUCLEON_RIGIDITY_GV_KGO,
+        rtol=1e-12,
+    )
+    np.testing.assert_allclose(
+        rigidity_spec["Rigidity distribution values"],
+        HELIUM_PER_NUCLEON_RIGIDITY_FLUX_KGO,
+        rtol=1e-12,
+    )
+    np.testing.assert_allclose(
+        rigidity_spec["Rigidity distribution values"],
+        independent_rigidity_flux,
+        rtol=1e-12,
+    )
+
+
+# Helium per-nucleon spectrum on the 1000–5000 MeV/n grid against high-precision R and dJ/dR values.
+def test_helium_per_nucleon_spectrum_grid_matches_kgo():
+    rigidity_spec = PRCT.convertPerNucleonEnergySpecToTotalRigiditySpec(
+        HELIUM_SPECTRUM_ENERGY_MEV_N,
+        HELIUM_SPECTRUM_FLUX_PER_MEV_N,
+        particleMassAU=HELIUM_A,
+        particleChargeAU=HELIUM_Z,
+    )
+
+    np.testing.assert_allclose(
+        rigidity_spec["Rigidity"],
+        HELIUM_SPECTRUM_RIGIDITY_GV_KGO,
+        rtol=1e-12,
+    )
+    np.testing.assert_allclose(
+        rigidity_spec["Rigidity distribution values"],
+        HELIUM_SPECTRUM_RIGIDITY_FLUX_KGO,
+        rtol=1e-12,
+    )
+
+
+# At the same E/n and dJ/d(E/n), helium dJ/dR is half the proton dJ/dR because dR/d(E/n) is twice as large.
+def test_helium_rigidity_flux_is_half_proton_flux_at_same_energy_per_nucleon():
+    energy_per_nucleon_MeV = [10.0, 100.0, 1000.0, 1129.0]
+    flux_per_mev_n = [1.0, 0.5, 0.2, 0.1]
+
+    proton_spec = PRCT.convertPerNucleonEnergySpecToTotalRigiditySpec(
+        energy_per_nucleon_MeV,
+        flux_per_mev_n,
+        particleMassAU=PROTON_A,
+        particleChargeAU=PROTON_Z,
+    )
+    helium_spec = PRCT.convertPerNucleonEnergySpecToTotalRigiditySpec(
+        energy_per_nucleon_MeV,
+        flux_per_mev_n,
+        particleMassAU=HELIUM_A,
+        particleChargeAU=HELIUM_Z,
+    )
+
+    np.testing.assert_allclose(
+        helium_spec["Rigidity distribution values"],
+        0.5 * proton_spec["Rigidity distribution values"],
+        rtol=1e-12,
+    )
+
+
+# Helium unit-flux dJ/dR equals the finite-difference d(E/n)/dR at 1129 MeV/n.
+def test_helium_per_nucleon_jacobian_matches_finite_difference():
+    energy_per_nucleon_MeV = 1129.0
+    delta_energy = 1e-4
+    rigidity_plus = PRCT.convertPerNucleonEnergyToTotalRigidity(
+        energy_per_nucleon_MeV + delta_energy,
+        particleMassAU=HELIUM_A,
+        particleChargeAU=HELIUM_Z,
+    ).iloc[0]
+    rigidity_minus = PRCT.convertPerNucleonEnergyToTotalRigidity(
+        energy_per_nucleon_MeV - delta_energy,
+        particleMassAU=HELIUM_A,
+        particleChargeAU=HELIUM_Z,
+    ).iloc[0]
+    d_energy_per_nucleon_d_rigidity = (2.0 * delta_energy) / (rigidity_plus - rigidity_minus)
+
+    rigidity_spec = PRCT.convertPerNucleonEnergySpecToTotalRigiditySpec(
+        [energy_per_nucleon_MeV],
+        [1.0],
+        particleMassAU=HELIUM_A,
+        particleChargeAU=HELIUM_Z,
+    )
+
+    np.testing.assert_allclose(
+        rigidity_spec["Rigidity distribution values"].iloc[0],
+        d_energy_per_nucleon_d_rigidity,
+        rtol=1e-8,
     )
