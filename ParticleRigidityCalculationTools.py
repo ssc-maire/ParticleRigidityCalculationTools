@@ -5,7 +5,7 @@ import pandas as pd
 onekftinkm = 0.3048
 
 protonRestMass = dec.Decimal(1.67262192e-27)  #kg
-electronRestMass = dec.Decimal(9.1093837015e-31)  #kg, CODATA 2018
+electronRestMass = dec.Decimal(9.1093837015e-31)  #kg
 chargeOfElectron = dec.Decimal(1.60217663e-19) #C
 c = dec.Decimal(299792458.0) #m/s
 
