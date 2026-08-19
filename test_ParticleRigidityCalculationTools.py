@@ -2,12 +2,13 @@
 import numpy as np
 import ParticleRigidityCalculationTools as PRCT
 
-# Tabulated atomic masses for proton, helium, and magnesium.
+# Tabulated atomic masses for proton, helium, magnesium, and electrons (m_e / m_p).
 def test_getAtomicMass():
 
     assert PRCT.getAtomicMass(1) == 1.0
     assert PRCT.getAtomicMass(2) == 4.0
     assert PRCT.getAtomicMass(12) == 24.3
+    np.testing.assert_allclose(PRCT.getAtomicMass(-1), ELECTRON_MASS_AU, rtol=1e-12)
 
 # Proton total kinetic energy (MeV) to total rigidity (GV) against known values.
 def test_rigidityConversion():
@@ -219,8 +220,12 @@ PROTON_Z = 1
 # Same physical constants as ParticleRigidityCalculationTools, used only for an
 # independent float64 check of the Decimal conversion chain.
 _PROTON_REST_MASS_KG = 1.67262192e-27
+_ELECTRON_REST_MASS_KG = 9.1093837015e-31
 _ELECTRON_CHARGE_C = 1.60217663e-19
 _SPEED_OF_LIGHT_M_S = 299792458.0
+ELECTRON_MASS_AU = _ELECTRON_REST_MASS_KG / _PROTON_REST_MASS_KG
+ELECTRON_CHARGE_MAGNITUDE_AU = 1
+CODATA_ELECTRON_REST_ENERGY_MEV = 0.51099895
 
 HELIUM_PER_NUCLEON_ENERGY_MEV = [11.294627058970837, 28.370820458389794, 1129.0]
 HELIUM_PER_NUCLEON_RIGIDITY_GV_KGO = [
@@ -252,23 +257,23 @@ HELIUM_SPECTRUM_RIGIDITY_FLUX_KGO = [
 ]
 
 
-# Independent float64 R = pc/Ze from total kinetic energy, used to check the Decimal converters.
-def _independent_total_rigidity_gv(ke_total_mev, mass_au, charge_au):
+# Independent float64 R = pc/|q| from total kinetic energy, used to check the Decimal converters.
+def _independent_total_rigidity_gv(ke_total_mev, mass_au, charge_magnitude_au):
     rest_energy_j = mass_au * _PROTON_REST_MASS_KG * (_SPEED_OF_LIGHT_M_S ** 2)
     kinetic_energy_j = np.asarray(ke_total_mev, dtype=np.float64) * _ELECTRON_CHARGE_C * 1e6
     total_energy_j = kinetic_energy_j + rest_energy_j
     pc_j = np.sqrt(total_energy_j ** 2 - rest_energy_j ** 2)
-    return (pc_j / (charge_au * _ELECTRON_CHARGE_C)) * 1e-9
+    return (pc_j / (abs(charge_magnitude_au) * _ELECTRON_CHARGE_C)) * 1e-9
 
 
 # Independent float64 dE_tot/dR (MeV/GV), used to check the helium dJ/dR Jacobian.
-def _independent_d_total_energy_d_rigidity(ke_total_mev, mass_au, charge_au):
+def _independent_d_total_energy_d_rigidity(ke_total_mev, mass_au, charge_magnitude_au):
     rest_energy_j = mass_au * _PROTON_REST_MASS_KG * (_SPEED_OF_LIGHT_M_S ** 2)
-    charge_c = charge_au * _ELECTRON_CHARGE_C
+    charge_magnitude_c = abs(charge_magnitude_au) * _ELECTRON_CHARGE_C
     kinetic_energy_j = np.asarray(ke_total_mev, dtype=np.float64) * _ELECTRON_CHARGE_C * 1e6
     total_energy_j = kinetic_energy_j + rest_energy_j
     pc_j = np.sqrt(total_energy_j ** 2 - rest_energy_j ** 2)
-    return (pc_j / total_energy_j) * charge_c * 1e9 / (_ELECTRON_CHARGE_C * 1e6)
+    return (pc_j / total_energy_j) * charge_magnitude_c * 1e9 / (_ELECTRON_CHARGE_C * 1e6)
 
 
 # Helium MeV/n -> total GV against high-precision known values and the independent analytic formula.
@@ -393,4 +398,196 @@ def test_helium_per_nucleon_jacobian_matches_finite_difference():
         rigidity_spec["Rigidity distribution values"].iloc[0],
         d_energy_per_nucleon_d_rigidity,
         rtol=1e-8,
+    )
+
+
+def _electron_rest_energy_mev():
+    return _ELECTRON_REST_MASS_KG * (_SPEED_OF_LIGHT_M_S ** 2) / (_ELECTRON_CHARGE_C * 1e6)
+
+
+def _textbook_rigidity_gv(kinetic_energy_mev, rest_energy_mev, charge_magnitude_au):
+    """R = pc/|q| = sqrt(K(K+2mc^2)) / (|Z| * 1000) GV, with K and mc^2 in MeV."""
+    kinetic_energy_mev = np.asarray(kinetic_energy_mev, dtype=np.float64)
+    pc_mev = np.sqrt(kinetic_energy_mev * (kinetic_energy_mev + 2.0 * rest_energy_mev))
+    return pc_mev / (abs(charge_magnitude_au) * 1e3)
+
+
+def _textbook_dKE_dR_mev_per_gv(kinetic_energy_mev, rest_energy_mev, charge_magnitude_au):
+    """dK/dR = |Z| * 1000 * (pc) / E, with E = K + mc^2 in MeV and R in GV."""
+    kinetic_energy_mev = np.asarray(kinetic_energy_mev, dtype=np.float64)
+    total_energy_mev = kinetic_energy_mev + rest_energy_mev
+    pc_mev = np.sqrt(kinetic_energy_mev * (kinetic_energy_mev + 2.0 * rest_energy_mev))
+    return (abs(charge_magnitude_au) * 1e3) * pc_mev / total_energy_mev
+
+
+# Electron rest energy from PRCT's mass and c matches CODATA mc^2 ≈ 0.511 MeV.
+def test_electron_rest_energy_matches_codata():
+    np.testing.assert_allclose(
+        _electron_rest_energy_mev(),
+        CODATA_ELECTRON_REST_ENERGY_MEV,
+        rtol=1e-8,
+    )
+
+
+# Electron rigidity uses R = sqrt(K(K+2mc^2)) / 1000 GV with mc^2 = 0.511 MeV, not proton mass.
+def test_electron_energy_to_rigidity_matches_textbook_formula():
+    kinetic_energy_mev = [0.1, 0.511, 1.0, 10.0, 100.0, 1000.0]
+    electron_mass_au = PRCT.getAtomicMass(-1)
+    rigidity = PRCT.convertParticleEnergyToRigidity(
+        kinetic_energy_mev,
+        particleMassAU=electron_mass_au,
+        particleChargeAU=ELECTRON_CHARGE_MAGNITUDE_AU,
+    )
+    textbook_rigidity = _textbook_rigidity_gv(
+        kinetic_energy_mev,
+        _electron_rest_energy_mev(),
+        ELECTRON_CHARGE_MAGNITUDE_AU,
+    )
+    independent_si_rigidity = _independent_total_rigidity_gv(
+        kinetic_energy_mev,
+        electron_mass_au,
+        ELECTRON_CHARGE_MAGNITUDE_AU,
+    )
+
+    np.testing.assert_allclose(rigidity, textbook_rigidity, rtol=1e-12)
+    np.testing.assert_allclose(rigidity, independent_si_rigidity, rtol=1e-12)
+    np.testing.assert_allclose(rigidity.iloc[2], 0.0014219697263106033, rtol=1e-12)
+
+    proton_rigidity = PRCT.convertParticleEnergyToRigidity(
+        kinetic_energy_mev,
+        particleMassAU=PROTON_A,
+        particleChargeAU=PROTON_Z,
+    )
+    assert rigidity.iloc[2] < 0.05 * proton_rigidity.iloc[2]
+
+
+# Ultrarelativistic electrons satisfy R ≈ (K + mc^2) / 1000 GV.
+def test_electron_ultrarelativistic_rigidity_limit():
+    kinetic_energy_mev = 10000.0
+    rigidity = PRCT.convertParticleEnergyToRigidity(
+        kinetic_energy_mev,
+        particleMassAU=PRCT.getAtomicMass(-1),
+        particleChargeAU=ELECTRON_CHARGE_MAGNITUDE_AU,
+    ).iloc[0]
+    np.testing.assert_allclose(
+        rigidity,
+        (kinetic_energy_mev + _electron_rest_energy_mev()) / 1000.0,
+        rtol=1e-8,
+    )
+
+
+# Electron energy <-> rigidity round-trip with m_e/m_p and |Z| = 1.
+def test_electron_energy_rigidity_round_trip():
+    kinetic_energy_mev = [0.1, 1.0, 10.0, 100.0, 1000.0]
+    electron_mass_au = PRCT.getAtomicMass(-1)
+    rigidity = PRCT.convertParticleEnergyToRigidity(
+        kinetic_energy_mev,
+        particleMassAU=electron_mass_au,
+        particleChargeAU=ELECTRON_CHARGE_MAGNITUDE_AU,
+    )
+    recovered_energy = PRCT.convertParticleRigidityToEnergy(
+        rigidity,
+        particleMassAU=electron_mass_au,
+        particleChargeAU=ELECTRON_CHARGE_MAGNITUDE_AU,
+    )
+    np.testing.assert_allclose(recovered_energy, kinetic_energy_mev, rtol=1e-10)
+
+
+# Magnetic rigidity uses charge magnitude |q|, so a negative particleChargeAU matches the positive value.
+def test_charge_sign_is_ignored():
+    kinetic_energy_mev = [1.0, 100.0]
+    electron_mass_au = PRCT.getAtomicMass(-1)
+    positive = PRCT.convertParticleEnergyToRigidity(
+        kinetic_energy_mev,
+        particleMassAU=electron_mass_au,
+        particleChargeAU=1,
+    )
+    negative = PRCT.convertParticleEnergyToRigidity(
+        kinetic_energy_mev,
+        particleMassAU=electron_mass_au,
+        particleChargeAU=-1,
+    )
+    np.testing.assert_allclose(negative, positive, rtol=1e-12)
+    assert (positive > 0).all()
+
+    helium_positive = PRCT.convertParticleEnergyToRigidity(
+        kinetic_energy_mev,
+        particleMassAU=HELIUM_A,
+        particleChargeAU=HELIUM_Z,
+    )
+    helium_negative = PRCT.convertParticleEnergyToRigidity(
+        kinetic_energy_mev,
+        particleMassAU=HELIUM_A,
+        particleChargeAU=-HELIUM_Z,
+    )
+    np.testing.assert_allclose(helium_negative, helium_positive, rtol=1e-12)
+
+    flux_per_mev = [1.0, 0.5]
+    positive_spec = PRCT.convertParticleEnergySpecToRigiditySpec(
+        kinetic_energy_mev,
+        flux_per_mev,
+        particleMassAU=electron_mass_au,
+        particleChargeAU=1,
+    )
+    negative_spec = PRCT.convertParticleEnergySpecToRigiditySpec(
+        kinetic_energy_mev,
+        flux_per_mev,
+        particleMassAU=electron_mass_au,
+        particleChargeAU=-1,
+    )
+    np.testing.assert_allclose(
+        negative_spec["Rigidity"],
+        positive_spec["Rigidity"],
+        rtol=1e-12,
+    )
+    np.testing.assert_allclose(
+        negative_spec["Rigidity distribution values"],
+        positive_spec["Rigidity distribution values"],
+        rtol=1e-12,
+    )
+
+
+# Electron dJ/dE -> dJ/dR uses j_R = j_E * |Z| * 1000 * (pc) / E.
+def test_electron_energy_spectrum_jacobian_matches_textbook_formula():
+    kinetic_energy_mev = [0.1, 1.0, 10.0, 100.0, 1000.0]
+    flux_per_mev = [1.0, 0.5, 0.2, 0.1, 0.01]
+    electron_mass_au = PRCT.getAtomicMass(-1)
+    rigidity_spec = PRCT.convertParticleEnergySpecToRigiditySpec(
+        kinetic_energy_mev,
+        flux_per_mev,
+        particleMassAU=electron_mass_au,
+        particleChargeAU=ELECTRON_CHARGE_MAGNITUDE_AU,
+    )
+    textbook_flux = np.asarray(flux_per_mev) * _textbook_dKE_dR_mev_per_gv(
+        kinetic_energy_mev,
+        _electron_rest_energy_mev(),
+        ELECTRON_CHARGE_MAGNITUDE_AU,
+    )
+
+    np.testing.assert_allclose(
+        rigidity_spec["Rigidity"],
+        _textbook_rigidity_gv(
+            kinetic_energy_mev,
+            _electron_rest_energy_mev(),
+            ELECTRON_CHARGE_MAGNITUDE_AU,
+        ),
+        rtol=1e-12,
+    )
+    np.testing.assert_allclose(
+        rigidity_spec["Rigidity distribution values"],
+        textbook_flux,
+        rtol=1e-12,
+    )
+
+    energy_spec = PRCT.convertParticleRigiditySpecToEnergySpec(
+        rigidity_spec["Rigidity"],
+        rigidity_spec["Rigidity distribution values"],
+        particleMassAU=electron_mass_au,
+        particleChargeAU=ELECTRON_CHARGE_MAGNITUDE_AU,
+    )
+    np.testing.assert_allclose(energy_spec["Energy"], kinetic_energy_mev, rtol=1e-10)
+    np.testing.assert_allclose(
+        energy_spec["Energy distribution values"],
+        flux_per_mev,
+        rtol=1e-10,
     )

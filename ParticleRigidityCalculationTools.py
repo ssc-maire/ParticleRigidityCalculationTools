@@ -5,6 +5,7 @@ import pandas as pd
 onekftinkm = 0.3048
 
 protonRestMass = dec.Decimal(1.67262192e-27)  #kg
+electronRestMass = dec.Decimal(9.1093837015e-31)  #kg, CODATA 2018
 chargeOfElectron = dec.Decimal(1.60217663e-19) #C
 c = dec.Decimal(299792458.0) #m/s
 
@@ -41,20 +42,24 @@ def getAtomicMass(atomicNumber):
       204.4,207.2,209.0,209.0,210.0,222.0,223.0,226.0,227.0,232.0,\
       231.0,238.0]
 
-    if ( atomicNumber < 0 ):
-        atomicMass = 1.0           # handle case for electron
-    elif (atomicNumber <= 92):
+    if ( atomicNumber == -1 ):
+        atomicMass = float(electronRestMass / protonRestMass)  # m_e / m_p
+    elif (atomicNumber >= 1 and atomicNumber <= 92):
         atomicMass = A[atomicNumber-1]       # look up table for other elements.
     else:
-        atomicMass = 0.0           # just in case
+        raise ValueError(f"Atomic number {atomicNumber} is out of range. Valid range is -1 - 92.")
 
     return atomicMass
 
 def determineParticleAttributes(particleMassAU, particleChargeAU):
+    """Return rest energy and charge magnitude in SI units.
+
+    ``particleChargeAU`` may be signed; the returned charge is |q| in coulombs.
+    """
     m0 = dec.Decimal(particleMassAU) * protonRestMass #kg
-    particleCharge = dec.Decimal(particleChargeAU) * chargeOfElectron #C
+    particleChargeMagnitude = abs(dec.Decimal(particleChargeAU)) * chargeOfElectron #C
     particleRestEnergy = m0 * (c**2)
-    return particleCharge,particleRestEnergy
+    return particleChargeMagnitude, particleRestEnergy
 
 def _as_series(values):
     if isinstance(values, pd.Series):
@@ -69,18 +74,17 @@ def convertParticleEnergyToRigidity(particleKineticEnergyInMeV:pd.Series, partic
 
     ``particleKineticEnergyInMeV`` is the nucleus kinetic energy, not MeV/n.
     For a per-nucleon energy grid use ``convertPerNucleonEnergyToTotalRigidity``.
+    ``particleChargeAU`` is charge in units of e; only the magnitude |q| is used.
     """
 
-    particleCharge, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
+    particleChargeMagnitude, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
 
     particleKineticEnergyInJoules = particleKineticEnergyInMeV.apply(dec.Decimal) * chargeOfElectron * dec.Decimal(1e6)
 
     totalParticleEnergy = particleKineticEnergyInJoules + particleRestEnergy
     pc = np.sqrt((totalParticleEnergy**2) - (particleRestEnergy**2))
 
-    #rigidity = pc / particleCharge
-
-    rigidityInGV = (pc / dec.Decimal(particleCharge)) * dec.Decimal(1e-9)
+    rigidityInGV = (pc / particleChargeMagnitude) * dec.Decimal(1e-9)
 
     return rigidityInGV.apply(float)
 
@@ -90,11 +94,12 @@ def convertParticleRigidityToEnergy(particleRigidityInGV:pd.Series, particleMass
 
     The returned energy is the nucleus kinetic energy, not MeV/n.
     For a per-nucleon energy grid use ``convertTotalRigidityToPerNucleonEnergy``.
+    ``particleChargeAU`` is charge in units of e; only the magnitude |q| is used.
     """
 
-    particleCharge, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
+    particleChargeMagnitude, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
 
-    pc = particleRigidityInGV.apply(dec.Decimal) * particleCharge * dec.Decimal(1e9)
+    pc = particleRigidityInGV.apply(dec.Decimal) * particleChargeMagnitude * dec.Decimal(1e9)
 
     totalParticleEnergy = np.sqrt((pc**2) + (particleRestEnergy**2))
 
@@ -104,7 +109,7 @@ def convertParticleRigidityToEnergy(particleRigidityInGV:pd.Series, particleMass
 
     return KEinMeV.apply(float)
 
-def calculate_dKEoverdR(particleKineticEnergyInMeV:pd.Series, particleChargeInCoulombs, particleRestEnergy):
+def calculate_dKEoverdR(particleKineticEnergyInMeV:pd.Series, particleChargeMagnitudeInCoulombs, particleRestEnergy):
     particleKineticEnergyInJoules = particleKineticEnergyInMeV.apply(dec.Decimal) * chargeOfElectron * dec.Decimal(1e6)
 
     totalParticleEnergy = particleKineticEnergyInJoules + particleRestEnergy
@@ -113,7 +118,7 @@ def calculate_dKEoverdR(particleKineticEnergyInMeV:pd.Series, particleChargeInCo
     #fullFactor = pc/particleKineticEnergyInJoules
     fullFactor = pc/totalParticleEnergy
 
-    dKEInMeV_drigidityInGV = fullFactor * particleChargeInCoulombs * dec.Decimal(1e9) / (chargeOfElectron * dec.Decimal(1e6))
+    dKEInMeV_drigidityInGV = fullFactor * particleChargeMagnitudeInCoulombs * dec.Decimal(1e9) / (chargeOfElectron * dec.Decimal(1e6))
     return dKEInMeV_drigidityInGV # output units are in milli electron charges
 
 @allowForNonSeriesInputArgs
@@ -122,11 +127,12 @@ def convertParticleEnergySpecToRigiditySpec(particleKineticEnergyInMeV:pd.Series
 
     ``fluxInEnergyMeVform`` must be a differential flux per total MeV, not per MeV/n.
     For a per-nucleon spectrum use ``convertPerNucleonEnergySpecToTotalRigiditySpec``.
+    ``particleChargeAU`` is charge in units of e; only the magnitude |q| is used.
     """
 
-    particleCharge, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
+    particleChargeMagnitude, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
 
-    dKEInMeV_drigidityInGV = calculate_dKEoverdR(particleKineticEnergyInMeV, particleCharge, particleRestEnergy)
+    dKEInMeV_drigidityInGV = calculate_dKEoverdR(particleKineticEnergyInMeV, particleChargeMagnitude, particleRestEnergy)
 
     outputRigidities = convertParticleEnergyToRigidity(particleKineticEnergyInMeV, particleMassAU = particleMassAU, particleChargeAU = particleChargeAU)
     outputRigiditySpectrum = (dKEInMeV_drigidityInGV * fluxInEnergyMeVform.apply(dec.Decimal)).apply(float)
@@ -141,13 +147,14 @@ def convertParticleRigiditySpecToEnergySpec(particleRigidityInGV:pd.Series, flux
 
     The returned energy column is total MeV and the flux is per total MeV.
     For a per-nucleon spectrum use ``convertTotalRigiditySpecToPerNucleonEnergySpec``.
+    ``particleChargeAU`` is charge in units of e; only the magnitude |q| is used.
     """
 
-    particleCharge, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
+    particleChargeMagnitude, particleRestEnergy = determineParticleAttributes(particleMassAU, particleChargeAU)
 
     particleKineticEnergyInMeV = convertParticleRigidityToEnergy(particleRigidityInGV, particleMassAU = particleMassAU, particleChargeAU = particleChargeAU).apply(dec.Decimal)
 
-    dKEInMeV_drigidityInGV = calculate_dKEoverdR(particleKineticEnergyInMeV, particleCharge, particleRestEnergy)
+    dKEInMeV_drigidityInGV = calculate_dKEoverdR(particleKineticEnergyInMeV, particleChargeMagnitude, particleRestEnergy)
 
     outputEnergies = particleKineticEnergyInMeV
 
