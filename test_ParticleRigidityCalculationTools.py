@@ -16,7 +16,11 @@ def test_rigidityConversion():
 
     outputValues = PRCT.convertParticleEnergyToRigidity(particleKineticEnergyInMeV, particleMassAU = 1.0, particleChargeAU = 1.0)
 
-    np.testing.assert_allclose(outputValues, [0.73, 1.19, 1.76, 5.99], atol=5e-3)
+    np.testing.assert_allclose(
+        outputValues,
+        [0.7291337629108413, 1.1917395085827414, 1.7606697947406509, 5.989121464609327],
+        rtol=1e-12,
+    )
 
 # Proton energy -> rigidity -> energy returns the original total kinetic energies.
 def test_rigidityAndEnergyConversion():
@@ -32,7 +36,7 @@ def test_rigidityAndEnergyConversion():
 
 #######################################################
 
-# Proton dJ/dE (per total MeV) to dJ/dR (per total GV) against a known point.
+# Proton dJ/dE (per total MeV) to dJ/dR (per total GV) against known values.
 def test_EnergySpecToRigiditySpec():
 
     energyValuesInMeV = [1000, 2000, 3000, 4000, 5000]
@@ -40,16 +44,50 @@ def test_EnergySpecToRigiditySpec():
 
     rigiditySpec = PRCT.convertParticleEnergySpecToRigiditySpec(energyValuesInMeV,energyDistributionValues,particleMassAU = 1,particleChargeAU = 1)
 
-    np.testing.assert_allclose(rigiditySpec["Rigidity"].iloc[2], 3.82, atol=5e-3)
-    np.testing.assert_allclose(rigiditySpec["Rigidity distribution values"].iloc[2], 194.24, atol=5e-3)
+    np.testing.assert_allclose(
+        rigiditySpec["Rigidity"],
+        [1.6960377875702215, 2.78443681087077, 3.8248702632374703, 4.848316894290674, 5.863678102038896],
+        rtol=1e-12,
+    )
+    np.testing.assert_allclose(
+        rigiditySpec["Rigidity distribution values"],
+        [875.0256466528116, 473.8221524534995, 194.2410365434809, 98.1784074969649, 9.874384357464102],
+        rtol=1e-12,
+    )
 
-# Smoke test: proton rigidity-spectrum to energy-spectrum conversion runs without error.
+# Proton dJ/dR (per total GV) to dJ/dE (per total MeV); R=0 maps to zero energy and NaN flux.
 def test_RigiditySpecToEnergySpec():
 
     rigidityValuesInGV = np.linspace(0.0,10.0,19)
     rigidityDistributionValues = np.linspace(0.0,10.0,19)
 
     energySpec = PRCT.convertParticleRigiditySpecToEnergySpec(rigidityValuesInGV,rigidityDistributionValues,particleMassAU = 1,particleChargeAU = 1)
+
+    expected_energy = PRCT.convertParticleRigidityToEnergy(
+        rigidityValuesInGV, particleMassAU=1, particleChargeAU=1
+    )
+    np.testing.assert_allclose(energySpec["Energy"], expected_energy, rtol=1e-10)
+    np.testing.assert_allclose(energySpec["Energy"].iloc[0], 0.0, atol=1e-15)
+    assert np.isnan(energySpec["Energy distribution values"].iloc[0])
+    np.testing.assert_allclose(energySpec["Energy"].iloc[9], 4149.001691493931, rtol=1e-12)
+    np.testing.assert_allclose(
+        energySpec["Energy distribution values"].iloc[9],
+        0.005087273779926977,
+        rtol=1e-12,
+    )
+
+    recovered_rigidity_spec = PRCT.convertParticleEnergySpecToRigiditySpec(
+        energySpec["Energy"].iloc[1:],
+        energySpec["Energy distribution values"].iloc[1:],
+        particleMassAU=1,
+        particleChargeAU=1,
+    )
+    np.testing.assert_allclose(recovered_rigidity_spec["Rigidity"], rigidityValuesInGV[1:], rtol=1e-10)
+    np.testing.assert_allclose(
+        recovered_rigidity_spec["Rigidity distribution values"],
+        rigidityDistributionValues[1:],
+        rtol=1e-10,
+    )
 
 # Proton total-energy and total-rigidity spectra convert into each other and back.
 def test_BothSpectralConversions():
